@@ -769,6 +769,13 @@ void main () {
         case 1:
             fragColor = vec4(B * depthToColor(vertexDepth), B);
             break;
+        case 2:
+            B = exp(A) * 1.0;
+            fragColor = vec4(vColor.rgb * (1.0 - B), 1.0 - B);
+            break;
+        default:
+            fragColor = vec4(B * vColor.rgb, B);
+            break;
     }
 
 
@@ -896,10 +903,23 @@ async function main() {
     const u_near = gl.getUniformLocation(program, "near");
     const u_far = gl.getUniformLocation(program, "far");
 
-    let renderingMode = 0; // Start in RGB mode
+    let renderingMode = 0; // 0 for RGB, 1 for depth, 2 for gaussian
     // Or, using a select dropdown
     document.getElementById('RenderMode').addEventListener('change', (e) => {
-        renderingMode = e.target.value === 'depth' ? 1 : 0;
+        switch (e.target.value) {
+            case 'rgb':
+                renderingMode = 0;
+                break;
+            case 'depth':
+                renderingMode = 1;
+                break;
+            case 'gaussian':
+                renderingMode = 2;
+                break;
+            default:
+                renderingMode = 0;
+                break;
+        }
         gl.uniform1i(gl.getUniformLocation(program, 'mode'), renderingMode);
 
         const depthBarLegend = document.getElementById('depthBarLegend');
