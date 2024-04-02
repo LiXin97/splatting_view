@@ -883,11 +883,17 @@ async function main() {
 
     const rowLength = 3 * 4 + 3 * 4 + 4 + 4;
     const reader = req.body.getReader();
-    let splatData = new Uint8Array(req.headers.get("content-length"));
+
+    // set 4 splat data
+    let splatDatas = [];
+    let splat_data_id = 0;
+    for (let i = 0; i < 4; i++) {
+        splatDatas.push(new Uint8Array(req.headers.get("content-length")));
+    }
 
     const downsample =
-        splatData.length / rowLength > 500000 ? 1 : 1 / devicePixelRatio;
-    console.log(splatData.length / rowLength, downsample);
+    splatDatas[splat_data_id].length / rowLength > 500000 ? 1 : 1 / devicePixelRatio;
+    console.log(splatDatas[splat_data_id].length / rowLength, downsample);
 
     const worker = new Worker(
         URL.createObjectURL(
@@ -972,6 +978,28 @@ async function main() {
     const u_near = gl.getUniformLocation(program, "near");
     const u_far = gl.getUniformLocation(program, "far");
 
+
+    document.getElementById("switchGS").addEventListener("change", (e) => {
+        switch(e.target.value){
+            case "GS1":
+                splat_data_id = 0;
+                break;
+            case "GS2":
+                splat_data_id = 1;
+                break;
+            case "GS3":
+                splat_data_id = 2;
+                break;
+            case "GS4":
+                splat_data_id = 3;
+                break;
+        }
+        worker.postMessage({ 
+            buffer: splatDatas[splat_data_id].buffer,
+            vertexCount: Math.floor(splatDatas[splat_data_id].length / rowLength)
+        });    
+    });
+
     let renderingMode = 0; // 0 for RGB, 1 for depth, 2 for gaussian
     // Or, using a select dropdown
     document.getElementById('RenderMode').addEventListener('change', (e) => {
@@ -1053,8 +1081,8 @@ async function main() {
 
     worker.onmessage = (e) => {
         if (e.data.buffer) {
-            splatData = new Uint8Array(e.data.buffer);
-            const blob = new Blob([splatData.buffer], {
+            splatDatas[splat_data_id] = new Uint8Array(e.data.buffer);
+            const blob = new Blob([splatDatas[splat_data_id].buffer], {
                 type: "application/octet-stream",
             });
             const link = document.createElement("a");
@@ -1537,7 +1565,7 @@ async function main() {
             document.getElementById("spinner").style.display = "";
             start = Date.now() + 2000;
         }
-        const progress = (100 * vertexCount) / (splatData.length / rowLength);
+        const progress = (100 * vertexCount) / (splatDatas[splat_data_id].length / rowLength);
         if (progress < 100) {
             document.getElementById("progress").style.width = progress + "%";
         } else {
@@ -1573,21 +1601,23 @@ async function main() {
         } else {
             stopLoading = true;
             fr.onload = () => {
-                splatData = new Uint8Array(fr.result);
-                console.log("Loaded", Math.floor(splatData.length / rowLength));
+                // release mem
+                splatDatas[splat_data_id] = null;
+                splatDatas[splat_data_id] = new Uint8Array(fr.result);
+                console.log("Loaded", Math.floor(splatDatas[splat_data_id].length / rowLength));
 
                 if (
-                    splatData[0] == 112 &&
-                    splatData[1] == 108 &&
-                    splatData[2] == 121 &&
-                    splatData[3] == 10
+                    splatDatas[splat_data_id][0] == 112 &&
+                    splatDatas[splat_data_id][1] == 108 &&
+                    splatDatas[splat_data_id][2] == 121 &&
+                    splatDatas[splat_data_id][3] == 10
                 ) {
                     // ply file magic header means it should be handled differently
-                    worker.postMessage({ ply: splatData.buffer });
+                    worker.postMessage({ ply: splatDatas[splat_data_id].buffer });
                 } else {
                     worker.postMessage({
-                        buffer: splatData.buffer,
-                        vertexCount: Math.floor(splatData.length / rowLength),
+                        buffer: splatDatas[splat_data_id].buffer,
+                        vertexCount: Math.floor(splatDatas[splat_data_id].length / rowLength),
                     });
                 }
             };
@@ -1623,12 +1653,15 @@ async function main() {
         const { done, value } = await reader.read();
         if (done || stopLoading) break;
 
-        splatData.set(value, bytesRead);
+        splatDatas[splat_data_id].set(value, bytesRead);
+        splatDatas[1].set(value, bytesRead);
+        splatDatas[2].set(value, bytesRead);
+        splatDatas[3].set(value, bytesRead);
         bytesRead += value.length;
 
         if (vertexCount > lastVertexCount) {
             worker.postMessage({
-                buffer: splatData.buffer,
+                buffer: splatDatas[splat_data_id].buffer,
                 vertexCount: Math.floor(bytesRead / rowLength),
             });
             lastVertexCount = vertexCount;
@@ -1636,7 +1669,7 @@ async function main() {
     }
     if (!stopLoading)
         worker.postMessage({
-            buffer: splatData.buffer,
+            buffer: splatDatas[splat_data_id].buffer,
             vertexCount: Math.floor(bytesRead / rowLength),
         });
 }
