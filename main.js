@@ -731,14 +731,16 @@ uniform float far; // Far clipping plane
 uniform int mode; // Mode: 0 for RGB, 1 for depth visualization
 
 vec3 depthToColor(float depth) {
+    depth = clamp(depth, near, far);
     float depthNormalized = (depth - near) / (far - near);
 
     // Define key colors in the gradient
-    vec3 colors[5] = vec3[](vec3(0.1, 0.1, 0.7), // Dark Blue
-                            vec3(0.1, 0.7, 0.7), // Cyan
-                            vec3(0.1, 0.7, 0.1), // Green
-                            vec3(0.7, 0.7, 0.1), // Yellow
-                            vec3(0.7, 0.1, 0.1)); // Red
+    vec3 colors[5] = vec3[](vec3(0.0, 0.0, 1.0), // Blue
+                            vec3(0.0, 1.0, 1.0), // Cyan
+                            vec3(0.0, 1.0, 0.0), // Green
+                            vec3(1.0, 1.0, 0.0), // Yellow
+                            vec3(1.0, 0.0, 0.0)  // Red
+                            );
 
     // Calculate which segment of the gradient the current depth falls into
     float scaledDepth = depthNormalized * 4.0; // 4 segments for 5 colors
@@ -746,7 +748,7 @@ vec3 depthToColor(float depth) {
     float fractionalPart = fract(scaledDepth);
 
     // Safely handle boundary conditions
-    index = clamp(index, 0, 3);
+    // index = clamp(index, 0, 3);
 
     // Linearly interpolate between the appropriate pair of colors
     vec3 color = mix(colors[index], colors[index + 1], fractionalPart);
@@ -792,8 +794,8 @@ async function main() {
     const url = new URL(
         // "nike.splat",
         // location.href,
-        params.get("url") || "train.splat",
-        "https://huggingface.co/cakewalk/splat-data/resolve/main/",
+        params.get("url") || "playroom.splat",
+        "https://huggingface.co/XINLI1997/splatting_data/resolve/main/",
     );
     const req = await fetch(url, {
         mode: "cors", // no-cors, *cors, same-origin
