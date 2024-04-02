@@ -668,6 +668,8 @@ in int index;
 out vec4 vColor;
 out vec2 vPosition;
 
+out vec3 vNormal;
+
 out float vertexDepth;
 
 void main () {
@@ -712,6 +714,8 @@ void main () {
         + position.x * majorAxis / viewport 
         + position.y * minorAxis / viewport, 0.0, 1.0);
 
+    vNormal = diagonalVector;
+
     vertexDepth = pos2d.z;
 }
 `.trim();
@@ -723,6 +727,7 @@ precision highp float;
 in vec4 vColor;
 in vec2 vPosition;
 in float vertexDepth;
+in vec2 vNormal;
 
 out vec4 fragColor;
 
@@ -756,6 +761,50 @@ vec3 depthToColor(float depth) {
     return color;
 }
 
+vec3 NormalToColor(vec2 normal) {
+    float angle = atan(normal.y, normal.x) / 3.14159265 + 0.5; // Normalizing from -PI/2..PI/2 to 0..1
+
+    // Define key colors in the gradient
+    vec3 colors[5] = vec3[](vec3(0.0, 0.0, 1.0), // Blue
+                            vec3(0.0, 1.0, 1.0), // Cyan
+                            vec3(0.0, 1.0, 0.0), // Green
+                            vec3(1.0, 1.0, 0.0), // Yellow
+                            vec3(1.0, 0.0, 0.0)  // Red
+                            );
+
+    // Calculate which segment of the gradient the current depth falls into
+    float scaledDepth = angle * 4.0; // 4 segments for 5 colors
+    int index = int(scaledDepth);
+    float fractionalPart = fract(scaledDepth);
+
+    // Safely handle boundary conditions
+    // index = clamp(index, 0, 3);
+
+    // Linearly interpolate between the appropriate pair of colors
+    vec3 color = mix(colors[index], colors[index + 1], fractionalPart);
+
+    return color;
+
+
+    // vec3 colors[6] = vec3[](vec3(1.0, 0.0, 0.0), // Red
+    //                         vec3(1.0, 0.5, 0.0), // Orange
+    //                         vec3(1.0, 1.0, 0.0), // Yellow
+    //                         vec3(0.0, 1.0, 0.0), // Green
+    //                         vec3(0.0, 1.0, 1.0), // Cyan
+    //                         vec3(0.0, 0.0, 1.0)  // Blue
+    //                         );
+
+    // // // Calculate which segment of the gradient the current angle falls into
+    // float scaledAngle = angle * 5.0; // 5 segments for 6 colors
+    // int index = int(scaledAngle);
+    // float fractionalPart = fract(scaledAngle);
+
+    // vec3 color = mix(colors[index], colors[index + 1], fractionalPart);
+
+    // // vec3 color = vec3(normal, 0.0);
+    // return color;
+}
+
 
 void main () {
     float A = -dot(vPosition, vPosition);
@@ -767,11 +816,23 @@ void main () {
             fragColor = vec4(B * vColor.rgb, B);
             break;
         case 1:
+            // B = exp(A) * 1.0;
+            // B = 1.0;
             fragColor = vec4(B * depthToColor(vertexDepth), B);
             break;
         case 2:
             B = exp(A) * 1.0;
-            fragColor = vec4(vColor.rgb * (1.0 - B), 1.0 - B);
+            // B = 1.0;
+            fragColor = vec4(vColor.rgb * B, B);
+            break;
+        case 3:
+            B = 1.0;
+            fragColor = vec4(vColor.rgb * B, B);
+            break;
+        case 4:
+            // B = exp(A) * 1.0;
+            // fragColor = vec4(vColor.rgb * B, B);
+            fragColor = vec4(B * NormalToColor(vNormal), B);
             break;
         default:
             fragColor = vec4(B * vColor.rgb, B);
@@ -915,6 +976,12 @@ async function main() {
                 break;
             case 'gaussian':
                 renderingMode = 2;
+                break;
+            case 'gaussianSH':
+                renderingMode = 3;
+                break;
+            case 'normal':
+                renderingMode = 4;
                 break;
             default:
                 renderingMode = 0;
