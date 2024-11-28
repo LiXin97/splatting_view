@@ -613,6 +613,13 @@ function createWorker(self) {
             } else {
                 rgba[3] = 255;
             }
+            if (types["intensities"]){
+                intensity_sigmod = 1 / (1 + Math.exp(-attrs.intensities));
+                rgba[0] = intensity_sigmod;
+                rgba[1] = intensity_sigmod;
+                rgba[2] = intensity_sigmod;
+                rgba[3] = 255;
+            }
         }
         console.timeEnd("build buffer");
         return buffer;
@@ -1188,7 +1195,7 @@ async function main() {
                     (e.deltaY * scale) / innerHeight,
                     0,
                 );
-            } else if (e.ctrlKey || e.metaKey) {
+            } else {
                 // inv = rotate4(inv,  (e.deltaX * scale) / innerWidth,  0, 0, 1);
                 // inv = translate4(inv,  0, (e.deltaY * scale) / innerHeight, 0);
                 // let preY = inv[13];
@@ -1196,16 +1203,17 @@ async function main() {
                     inv,
                     0,
                     0,
-                    (-10 * (e.deltaY * scale)) / innerHeight,
+                    (-5 * (e.deltaY * scale)) / innerHeight,
                 );
                 // inv[13] = preY;
-            } else {
-                let d = 4;
-                inv = translate4(inv, 0, 0, d);
-                inv = rotate4(inv, -(e.deltaX * scale) / innerWidth, 0, 1, 0);
-                inv = rotate4(inv, (e.deltaY * scale) / innerHeight, 1, 0, 0);
-                inv = translate4(inv, 0, 0, -d);
-            }
+            } 
+            // else {
+            //     let d = 4;
+            //     inv = translate4(inv, 0, 0, d);
+            //     inv = rotate4(inv, -(e.deltaX * scale) / innerWidth, 0, 1, 0);
+            //     inv = rotate4(inv, (e.deltaY * scale) / innerHeight, 1, 0, 0);
+            //     inv = translate4(inv, 0, 0, -d);
+            // }
 
             viewMatrix = invert4(inv);
         },
